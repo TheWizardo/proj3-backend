@@ -2,6 +2,7 @@ import mysql from 'mysql';
 import config from './config';
 
 // connecting to MySQL database
+console.log(config);
 const connection = mysql.createPool({
     host: config.mysqlHost,
     user: config.mysqlUser,
