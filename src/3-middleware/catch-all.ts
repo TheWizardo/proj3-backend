@@ -6,6 +6,7 @@ function catchAll(err: any, req: Request, res: Response, next: NextFunction): vo
     // if (statusCode === 500){
     //     err.message = "Something went wrong..."
     // }
+    console.log("[ERR]", err.message)
     res.status(statusCode).send(err.message);
 }
 
