@@ -16,6 +16,7 @@ class Config {
     public mysqlUser = process.env.MYSQLUSER;
     public mysqlPassword = process.env.MYSQLPASSWORD;
     public mysqlDatabase = process.env.MYSQLDATABASE;
+    public mysqlPort = process.env.MYSQLPORT;
     public imagesFolder = path.resolve(__dirname, "..", "1-assets", "images");
 }
 
