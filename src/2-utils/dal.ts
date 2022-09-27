@@ -8,7 +8,7 @@ const connection = mysql.createPool({
     user: config.mysqlUser,
     password: config.mysqlPassword,
     database: config.mysqlDatabase,
-    port: config.mysqlPort
+    port: +config.mysqlPort
 });
 
 // executing a query on the DB
