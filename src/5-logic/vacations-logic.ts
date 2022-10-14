@@ -156,8 +156,7 @@ async function AddAndReplaceImage(vacation?: VacationModel, id?: number): Promis
 }
 
 function parseDate(d: Date): string {
-    console.log(typeof d);
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
 }
 
 export default {
