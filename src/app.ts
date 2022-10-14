@@ -29,4 +29,3 @@ server.use("*", routeNotFound);
 server.use(catchAll);
 
 server.listen(config.port, () => console.log(`Listening on http://localhost:${config.port}`));
-console.log(process.env);
