@@ -28,4 +28,4 @@ server.use("/", destinationController);
 server.use("*", routeNotFound);
 server.use(catchAll);
 
-server.listen(config.port, () => console.log(`Listening on port ${config.port}`))
+server.listen(config.port, () => console.log(`Listening on http://localhost:${config.port}`))

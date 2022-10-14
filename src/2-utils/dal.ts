@@ -2,13 +2,12 @@ import mysql from 'mysql2';
 import config from './config';
 
 // connecting to MySQL database
-console.log(config);
 const connection = mysql.createPool({
     host: config.mysqlHost,
     user: config.mysqlUser,
     password: config.mysqlPassword,
     database: config.mysqlDatabase,
-    port: +config.mysqlPort
+    port: config.mysqlPort
 });
 
 // executing a query on the DB

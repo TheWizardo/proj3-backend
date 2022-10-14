@@ -4,12 +4,13 @@ import { OkPacket } from "mysql";
 import { IdNotFound, ValidationError } from "../4-models/client-errors";
 import { v4 as uuid } from 'uuid';
 import safeDelete from "../2-utils/safe-delete";
-import FollowAction from "../4-models/follow-action";
 import auth from "../2-utils/auth";
 import config from "../2-utils/config";
 
-async function getAllVacations(): Promise<VacationModel[]> {
-    const sqlQuery = `SELECT
+async function getAllVacations(authHeader: string): Promise<VacationModel[]> {
+    // getting the user from the provided Token
+    const uId = auth.getUserIDFromToken(authHeader);
+    const sqlQuery = `SELECT DISTINCT
                         V.vacationID AS id,
                         vacationImgPath AS imageName,
                         startDate,
@@ -18,17 +19,21 @@ async function getAllVacations(): Promise<VacationModel[]> {
                         V.destinationID AS dstId,
                         destinationName AS dstName,
                         destinationDescription AS dstDescription,
-                        COUNT(F.userID) AS following
+                        EXISTS(SELECT * FROM followers WHERE vacationID = F.vacationID AND userID = ?) AS isFollowed,
+                        COUNT(F.userID) AS followersCount
                       FROM vacations AS V
                       JOIN destinations AS D ON D.destinationID = V.destinationID
                       LEFT JOIN followers AS F ON V.vacationID = F.vacationID
                       GROUP BY V.vacationID`;
-    const vacations = await dal.execute(sqlQuery);
+    const vacations = await dal.execute(sqlQuery, uId);
+    vacations.map(v => v.isFollowed = v.isFollowed ? true : false);
     return vacations;
 }
 
-async function getVacationById(id: number): Promise<VacationModel> {
-    const sqlQuery = `SELECT
+async function getVacationById(authHeader: string, vId: number): Promise<VacationModel> {
+    // getting the user from the provided Token
+    const uId = auth.getUserIDFromToken(authHeader);
+    const sqlQuery = `SELECT DISTINCT
                         V.vacationID AS id,
                         vacationImgPath AS imageName,
                         startDate,
@@ -37,40 +42,21 @@ async function getVacationById(id: number): Promise<VacationModel> {
                         V.destinationID AS dstId,
                         destinationName AS dstName,
                         destinationDescription AS dstDescription,
-                        COUNT(F.userID) AS following
+                        EXISTS(SELECT * FROM followers WHERE vacationID = F.vacationID AND userID = ?) AS isFollowed,
+                        COUNT(F.userID) AS followersCount
                       FROM vacations AS V
                       JOIN destinations AS D ON D.destinationID = V.destinationID
                       LEFT JOIN followers AS F ON V.vacationID = F.vacationID
                       WHERE V.vacationID = ?
                       GROUP BY V.vacationID`;
-    const vacations = await dal.execute(sqlQuery, id);
+    const vacations = await dal.execute(sqlQuery, uId, vId);
     // making sure a vacation was returned
     if (vacations.length < 1) {
-        throw new IdNotFound(id);
+        throw new IdNotFound(vId);
     }
-    return vacations[0];
-}
-
-async function getVacationsByUser(authHeader: string): Promise<VacationModel[]> {
-    // getting the user from the provided Token
-    const userId = await auth.getUserIDFromToken(authHeader);
-    const sqlQuery = `SELECT 
-                        V.vacationID AS id,
-                        vacationImgPath AS imageName,
-                        startDate,
-                        endDate,
-                        vacationPrice AS price,
-                        V.destinationID AS dstId,
-                        destinationName AS dstName,
-                        destinationDescription AS dstDescription,
-                        COUNT(F.userID) AS following
-                      FROM vacations AS V
-                      JOIN destinations AS D ON V.destinationID = D.destinationID
-                      LEFT JOIN followers AS F ON V.vacationID = F.vacationID
-                      WHERE F.userID = ?
-                      GROUP BY V.vacationID`;
-    const vacations = await dal.execute(sqlQuery, userId);
-    return vacations;
+    const vacation = vacations[0];
+    vacation.isFollowed = vacation.isFollowed ? true : false;
+    return vacation;
 }
 
 async function addVacation(vacation: VacationModel): Promise<VacationModel> {
@@ -87,7 +73,8 @@ async function addVacation(vacation: VacationModel): Promise<VacationModel> {
     const result: OkPacket = await dal.execute(sqlQuery, vacation.startDate, vacation.endDate, vacation.price, vacation.imageName, vacation.dstId);
     // updating the vacation object with the returned data
     vacation.id = result.insertId;
-    vacation.following = 0;
+    vacation.followersCount = 0;
+    vacation.isFollowed = false;
     return vacation;
 }
 
@@ -97,7 +84,7 @@ async function updateVacation(vacation: VacationModel): Promise<VacationModel> {
         throw new ValidationError(err);
     }
     // check if there is an image to update. if not, keep the old
-    if (vacation.image) { 
+    if (vacation.image) {
         await AddAndReplaceImage(vacation);
     }
 
@@ -129,25 +116,24 @@ async function deleteVacation(id: number): Promise<void> {
     }
 }
 
-async function unfollowVacation(action: FollowAction): Promise<void> {
+async function unfollowVacation(vId: number, uId: number): Promise<void> {
     // deleting the follow connection in the DB
     const sqlQuery = `DELETE FROM followers WHERE vacationID = ? AND userID = ?`;
-    const result: OkPacket = await dal.execute(sqlQuery, action.vacationId, action.userId);
+    const result: OkPacket = await dal.execute(sqlQuery, vId, uId);
     // making sure the update was registered
     if (result.affectedRows === 0) {
-        throw new IdNotFound(action.vacationId);
+        throw new IdNotFound(vId);
     }
 }
 
-async function followVacation(action: FollowAction): Promise<FollowAction> {
+async function followVacation(vId: number, uId: number): Promise<number> {
     // adding new follow connection to the DB
     const sqlQuery = `INSERT INTO followers(vacationID, userID) VALUES(?, ?)`;
-    const result: OkPacket = await dal.execute(sqlQuery, action.vacationId, action.userId);
-    //console.log(result);******************************************
-    return action;
+    const result: OkPacket = await dal.execute(sqlQuery, vId, uId);
+    return vId;
 }
 
-async function AddAndReplaceImage(vacation: VacationModel = null, id: number = null): Promise<void> {
+async function AddAndReplaceImage(vacation?: VacationModel, id?: number): Promise<void> {
     let oldImageName = "PlaceholderThatWillNeverBeAnActualName.txt";
     // getting the old image name by the id
     if (vacation?.id || id) {
@@ -172,7 +158,7 @@ async function AddAndReplaceImage(vacation: VacationModel = null, id: number = n
 export default {
     getAllVacations,
     getVacationById,
-    getVacationsByUser,
+    // getVacationsByUser,
     deleteVacation,
     updateVacation,
     addVacation,

@@ -1,7 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import auth from '../2-utils/auth';
 import verify from '../3-middleware/verify-user';
-import FollowAction from '../4-models/follow-action';
 import VacationModel from '../4-models/vacation-model';
 import vacationsLogic from '../5-logic/vacations-logic';
 
@@ -9,7 +8,8 @@ const router = express.Router();
 
 router.get("/api/vacations", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const allVacations = await vacationsLogic.getAllVacations();
+        const authHeader = req.header("authorization");
+        const allVacations = await vacationsLogic.getAllVacations(authHeader);
         res.json(allVacations);
     }
     catch (err: any) {
@@ -17,16 +17,16 @@ router.get("/api/vacations", async (req: Request, res: Response, next: NextFunct
     }
 });
 
-router.get("/api/vacations/my-vacations", verify.verifyUser, async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const authHeader = req.header("authorization");
-        const allVacations = await vacationsLogic.getVacationsByUser(authHeader);
-        res.json(allVacations);
-    }
-    catch (err: any) {
-        next(err);
-    }
-});
+// router.get("/api/vacations/my-vacations", verify.verifyUser, async (req: Request, res: Response, next: NextFunction) => {
+    //     try {
+//         const authHeader = req.header("authorization");
+//         const allVacations = await vacationsLogic.getVacationsByUser(authHeader);
+//         res.json(allVacations);
+//     }
+//     catch (err: any) {
+    //         next(err);
+//     }
+// });
 
 router.post("/api/vacations", verify.verifyAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -43,7 +43,8 @@ router.post("/api/vacations", verify.verifyAdmin, async (req: Request, res: Resp
 router.get("/api/vacations/:id", verify.verifyAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const id = +req.params.id;
-        const vacation = await vacationsLogic.getVacationById(id);
+        const authHeader = req.header("authorization");
+        const vacation = await vacationsLogic.getVacationById(authHeader, id);
         res.json(vacation);
     }
     catch (err: any) {
@@ -83,8 +84,7 @@ router.post("/api/vacations/:id/follow", verify.verifyUser, async (req: Request,
         const authHeader = req.header("authorization");
         const uId = await auth.getUserIDFromToken(authHeader);
         const vId = +req.params.id;
-        const action = new FollowAction(vId, uId);
-        const addedFollow = await vacationsLogic.followVacation(action);
+        const addedFollow = await vacationsLogic.followVacation(vId, uId);
         res.status(201).json(addedFollow);
     }
     catch (err: any) {
@@ -95,13 +95,9 @@ router.post("/api/vacations/:id/follow", verify.verifyUser, async (req: Request,
 router.delete("/api/vacations/:id/unfollow", verify.verifyUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const authHeader = req.header("authorization");
-        console.log(authHeader);
         const uId = await auth.getUserIDFromToken(authHeader);
-        console.log(uId);
         const vId = +req.params.id;
-        console.log(vId);
-        const action = new FollowAction(vId, uId);
-        await vacationsLogic.unfollowVacation(action);
+        await vacationsLogic.unfollowVacation(vId, uId);
         res.sendStatus(204);
     }
     catch (err: any) {
