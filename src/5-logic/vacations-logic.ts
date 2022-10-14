@@ -26,7 +26,10 @@ async function getAllVacations(authHeader: string): Promise<VacationModel[]> {
                       LEFT JOIN followers AS F ON V.vacationID = F.vacationID
                       GROUP BY V.vacationID`;
     const vacations = await dal.execute(sqlQuery, uId);
-    vacations.map(v => v.isFollowed = v.isFollowed ? true : false);
+    vacations.map(v => {
+        v.isFollowed = v.isFollowed ? true : false;
+        v.price = + v.price;
+    });
     return vacations;
 }
 
@@ -56,6 +59,7 @@ async function getVacationById(authHeader: string, vId: number): Promise<Vacatio
     }
     const vacation = vacations[0];
     vacation.isFollowed = vacation.isFollowed ? true : false;
+    vacation.price = + vacation.price;
     return vacation;
 }
 
@@ -156,7 +160,7 @@ async function AddAndReplaceImage(vacation?: VacationModel, id?: number): Promis
 }
 
 function parseDate(d: Date): string {
-    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
 
 export default {
