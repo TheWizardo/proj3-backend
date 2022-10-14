@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import { date } from 'joi';
 import auth from '../2-utils/auth';
 import verify from '../3-middleware/verify-user';
 import VacationModel from '../4-models/vacation-model';
@@ -17,21 +18,12 @@ router.get("/api/vacations", async (req: Request, res: Response, next: NextFunct
     }
 });
 
-// router.get("/api/vacations/my-vacations", verify.verifyUser, async (req: Request, res: Response, next: NextFunction) => {
-    //     try {
-//         const authHeader = req.header("authorization");
-//         const allVacations = await vacationsLogic.getVacationsByUser(authHeader);
-//         res.json(allVacations);
-//     }
-//     catch (err: any) {
-    //         next(err);
-//     }
-// });
-
 router.post("/api/vacations", verify.verifyAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
         req.body.image = req.files?.image;
         const vacation = new VacationModel(req.body);
+        vacation.endDate = new Date(vacation.endDate);
+        vacation.startDate = new Date(vacation.startDate);
         const addedVacation = await vacationsLogic.addVacation(vacation);
         res.status(201).json(addedVacation);
     }
@@ -71,6 +63,8 @@ router.put("/api/vacations/:id", verify.verifyAdmin, async (req: Request, res: R
         req.body.price = +req.body.price;
         req.body.dstId = +req.body.dstId;
         const vacation = new VacationModel(req.body);
+        vacation.endDate = new Date(vacation.endDate);
+        vacation.startDate = new Date(vacation.startDate);
         const updatedVacation = await vacationsLogic.updateVacation(vacation);
         res.json(updatedVacation);
     }
